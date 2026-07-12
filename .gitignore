@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Database
+*.db
+
+# Logs
+logs/
+
+# Environment
+.env
+
+# VS Code
+.vscode/
