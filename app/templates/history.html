@@ -52,6 +52,10 @@
                                 <span class="approved-label">
                                     承認済み
                                 </span>
+                            {% elif product.status == "filtered" %}
+                                <span class="filtered-label">
+                                    除外：{{ product.filter_reason }}
+                                </span>
                             {% else %}
                                 <span class="rejected-label">
                                     却下

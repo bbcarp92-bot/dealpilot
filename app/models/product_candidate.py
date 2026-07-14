@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.database import Base
@@ -44,6 +44,11 @@ class ProductCandidate(Base):
         default=0,
     )
 
+    is_prime: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
+
     product_url: Mapped[str] = mapped_column(
         String(1000),
         default="",
@@ -53,6 +58,11 @@ class ProductCandidate(Base):
         String(20),
         default="pending",
         index=True,
+    )
+
+    filter_reason: Mapped[str] = mapped_column(
+        String(500),
+        default="",
     )
 
     created_at: Mapped[datetime] = mapped_column(

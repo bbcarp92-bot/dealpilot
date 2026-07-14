@@ -1,21 +1,22 @@
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.database.database import Base, engine, get_database
 from app.models.product_candidate import ProductCandidate
+from app.sample_products import SAMPLE_PRODUCTS
 
 app = FastAPI(
     title="DealPilot",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 templates = Jinja2Templates(directory="app/templates")
@@ -75,14 +76,35 @@ def save_settings(settings: dict) -> None:
         )
 
 
+def check_product(product: dict, settings: dict) -> tuple[bool, str]:
+    reasons = []
+
+    if product["discount_rate"] < settings["minimum_discount"]:
+        reasons.append(
+            f"割引率が{settings['minimum_discount']}%未満"
+        )
+
+    if product["current_price"] < settings["minimum_price"]:
+        reasons.append("最低価格より安い")
+
+    if product["current_price"] > settings["maximum_price"]:
+        reasons.append("最高価格を超えている")
+
+    if settings["prime_only"] and not product["is_prime"]:
+        reasons.append("Prime対象外")
+
+    if reasons:
+        return False, "、".join(reasons)
+
+    return True, "設定条件に一致"
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(
     request: Request,
     database: Session = Depends(get_database),
 ):
-    settings = load_settings()
-
-    candidate_count = database.scalar(
+    pending_count = database.scalar(
         select(func.count(ProductCandidate.id)).where(
             ProductCandidate.status == "pending"
         )
@@ -94,14 +116,21 @@ def home(
         )
     ) or 0
 
+    filtered_count = database.scalar(
+        select(func.count(ProductCandidate.id)).where(
+            ProductCandidate.status == "filtered"
+        )
+    ) or 0
+
     return templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
             "status": "準備完了",
-            "search_count": candidate_count,
+            "search_count": pending_count,
             "post_count": approved_count,
-            "settings": settings,
+            "filtered_count": filtered_count,
+            "settings": load_settings(),
         },
     )
 
@@ -172,31 +201,76 @@ def candidates_page(
     )
 
 
-@app.post("/candidates/sample")
-def add_sample_candidate(
+@app.post("/candidates/sample-batch")
+def add_sample_products(
     database: Session = Depends(get_database),
 ):
-    sample = ProductCandidate(
-        asin="TEST-ASIN-001",
-        title="テスト用 モバイルバッテリー 10000mAh",
-        category="家電",
-        original_price=4980,
-        current_price=2980,
-        discount_rate=40,
-        rating=4.4,
-        review_count=1520,
-        product_url="https://www.amazon.co.jp/",
-        status="pending",
+    settings = load_settings()
+
+    added_count = 0
+    filtered_count = 0
+    skipped_count = 0
+
+    for item in SAMPLE_PRODUCTS:
+        existing = database.scalar(
+            select(ProductCandidate).where(
+                ProductCandidate.asin == item["asin"]
+            )
+        )
+
+        if existing is not None:
+            skipped_count += 1
+            continue
+
+        accepted, reason = check_product(item, settings)
+
+        product = ProductCandidate(
+            asin=item["asin"],
+            title=item["title"],
+            category=item["category"],
+            original_price=item["original_price"],
+            current_price=item["current_price"],
+            discount_rate=item["discount_rate"],
+            rating=item["rating"],
+            review_count=item["review_count"],
+            is_prime=item["is_prime"],
+            product_url="https://www.amazon.co.jp/",
+            status="pending" if accepted else "filtered",
+            filter_reason=reason,
+        )
+
+        database.add(product)
+
+        if accepted:
+            added_count += 1
+        else:
+            filtered_count += 1
+
+    database.commit()
+
+    message = (
+        f"候補{added_count}件、除外{filtered_count}件、"
+        f"登録済み{skipped_count}件です。"
     )
 
-    database.add(sample)
+    return RedirectResponse(
+        url=f"/candidates?message={quote(message)}",
+        status_code=303,
+    )
 
-    try:
-        database.commit()
-        message = "テスト商品を追加しました。"
-    except IntegrityError:
-        database.rollback()
-        message = "テスト商品はすでに登録されています。"
+
+@app.post("/candidates/reset-test-data")
+def reset_test_data(
+    database: Session = Depends(get_database),
+):
+    database.execute(
+        delete(ProductCandidate).where(
+            ProductCandidate.asin.like("TEST%")
+        )
+    )
+    database.commit()
+
+    message = quote("テスト商品をすべて削除しました。")
 
     return RedirectResponse(
         url=f"/candidates?message={message}",
@@ -254,7 +328,7 @@ def history_page(
     products = database.scalars(
         select(ProductCandidate)
         .where(ProductCandidate.status != "pending")
-        .order_by(ProductCandidate.decided_at.desc())
+        .order_by(ProductCandidate.created_at.desc())
     ).all()
 
     return templates.TemplateResponse(

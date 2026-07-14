@@ -52,20 +52,13 @@
             </article>
 
             <article class="summary-card">
-                <span>最低割引率</span>
-                <strong>
-                    {{ settings.minimum_discount }}%
-                </strong>
+                <span>条件で除外</span>
+                <strong>{{ filtered_count }}</strong>
             </article>
 
             <article class="summary-card">
-                <span>運転モード</span>
-
-                {% if settings.dry_run %}
-                    <strong>テスト</strong>
-                {% else %}
-                    <strong>本番</strong>
-                {% endif %}
+                <span>最低割引率</span>
+                <strong>{{ settings.minimum_discount }}%</strong>
             </article>
         </section>
 

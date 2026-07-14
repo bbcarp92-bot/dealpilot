@@ -42,18 +42,32 @@
                 <div>
                     <h2>投稿候補一覧</h2>
                     <p class="help-text">
-                        投稿する商品を承認してください。
+                        現在の設定条件に合った商品だけ表示されます。
                     </p>
                 </div>
 
-                <form
-                    method="post"
-                    action="/candidates/sample"
-                >
-                    <button type="submit">
-                        テスト商品を追加
-                    </button>
-                </form>
+                <div class="button-row">
+                    <form
+                        method="post"
+                        action="/candidates/sample-batch"
+                    >
+                        <button type="submit">
+                            テスト商品を検索
+                        </button>
+                    </form>
+
+                    <form
+                        method="post"
+                        action="/candidates/reset-test-data"
+                    >
+                        <button
+                            class="danger-button"
+                            type="submit"
+                        >
+                            テスト商品を削除
+                        </button>
+                    </form>
+                </div>
             </div>
         </section>
 
@@ -64,6 +78,12 @@
                         <div class="discount-badge">
                             {{ product.discount_rate }}% OFF
                         </div>
+
+                        {% if product.is_prime %}
+                            <span class="prime-badge">
+                                Prime
+                            </span>
+                        {% endif %}
 
                         <p class="product-category">
                             {{ product.category }}
@@ -115,9 +135,9 @@
         {% else %}
             <section class="panel empty-state">
                 <h2>投稿候補はありません</h2>
+
                 <p>
-                    「テスト商品を追加」を押して、
-                    動作を確認してください。
+                    「テスト商品を検索」を押してください。
                 </p>
             </section>
         {% endif %}

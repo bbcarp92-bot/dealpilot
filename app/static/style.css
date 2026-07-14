@@ -372,3 +372,25 @@ input[type="number"] {
         flex-direction: column;
     }
 }
+
+.prime-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    margin-left: 6px;
+    border-radius: 6px;
+    background: #dff3ff;
+    color: #086b9c;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.filtered-label {
+    flex-shrink: 0;
+    max-width: 320px;
+    padding: 7px 11px;
+    border-radius: 8px;
+    background: #fff3d8;
+    color: #875b00;
+    font-size: 13px;
+    font-weight: bold;
+}
