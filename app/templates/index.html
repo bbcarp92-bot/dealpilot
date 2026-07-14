@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DealPilot</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='/style.css') }}"
+    >
+</head>
+
+<body>
+    <header class="header">
+        <div>
+            <h1>DealPilot</h1>
+            <p>Amazonアフィリエイト運用ツール</p>
+        </div>
+
+        <nav>
+            <a href="/">ホーム</a>
+            <a href="/settings">設定</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="status-card">
+            <div>
+                <span class="status-dot"></span>
+                <strong>システム状態</strong>
+            </div>
+
+            <p>{{ status }}</p>
+        </section>
+
+        <section class="summary-grid">
+            <article class="summary-card">
+                <span>今日の検索件数</span>
+                <strong>{{ search_count }}</strong>
+            </article>
+
+            <article class="summary-card">
+                <span>今日の投稿件数</span>
+                <strong>{{ post_count }}</strong>
+            </article>
+
+            <article class="summary-card">
+                <span>最低割引率</span>
+                <strong>{{ settings.minimum_discount }}%</strong>
+            </article>
+
+            <article class="summary-card">
+                <span>運転モード</span>
+
+                {% if settings.dry_run %}
+                    <strong>テスト</strong>
+                {% else %}
+                    <strong>本番</strong>
+                {% endif %}
+            </article>
+        </section>
+
+        <section class="panel">
+            <h2>クイック操作</h2>
+
+            <div class="button-row">
+                <button type="button" disabled>商品検索</button>
+                <button type="button" disabled>投稿文を作成</button>
+                <button type="button" disabled>Xへ投稿</button>
+            </div>
+
+            <p class="help-text">
+                ボタンの機能は、今後の作業で追加します。
+            </p>
+        </section>
+
+        <section class="panel">
+            <h2>現在の検索設定</h2>
+
+            <dl class="settings-summary">
+                <div>
+                    <dt>価格</dt>
+                    <dd>
+                        {{ settings.minimum_price }}円～
+                        {{ settings.maximum_price }}円
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Prime対象のみ</dt>
+                    <dd>
+                        {% if settings.prime_only %}
+                            ON
+                        {% else %}
+                            OFF
+                        {% endif %}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>検索間隔</dt>
+                    <dd>{{ settings.search_interval }}分</dd>
+                </div>
+            </dl>
+
+            <a class="primary-link" href="/settings">
+                設定を変更する
+            </a>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>設定 | DealPilot</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='/style.css') }}"
+    >
+</head>
+
+<body>
+    <header class="header">
+        <div>
+            <h1>DealPilot</h1>
+            <p>検索設定</p>
+        </div>
+
+        <nav>
+            <a href="/">ホーム</a>
+            <a href="/settings">設定</a>
+        </nav>
+    </header>
+
+    <main class="container narrow">
+        {% if saved %}
+            <div class="success-message">
+                設定を保存しました。
+            </div>
+        {% endif %}
+
+        <section class="panel">
+            <h2>Amazon商品検索の設定</h2>
+
+            <form method="post" action="/settings">
+                <label>
+                    最低割引率
+                    <div class="input-with-unit">
+                        <input
+                            type="number"
+                            name="minimum_discount"
+                            min="0"
+                            max="100"
+                            value="{{ settings.minimum_discount }}"
+                            required
+                        >
+                        <span>%</span>
+                    </div>
+                </label>
+
+                <div class="two-column">
+                    <label>
+                        最低価格
+                        <div class="input-with-unit">
+                            <input
+                                type="number"
+                                name="minimum_price"
+                                min="0"
+                                value="{{ settings.minimum_price }}"
+                                required
+                            >
+                            <span>円</span>
+                        </div>
+                    </label>
+
+                    <label>
+                        最高価格
+                        <div class="input-with-unit">
+                            <input
+                                type="number"
+                                name="maximum_price"
+                                min="0"
+                                value="{{ settings.maximum_price }}"
+                                required
+                            >
+                            <span>円</span>
+                        </div>
+                    </label>
+                </div>
+
+                <label>
+                    検索間隔
+                    <div class="input-with-unit">
+                        <input
+                            type="number"
+                            name="search_interval"
+                            min="5"
+                            max="1440"
+                            value="{{ settings.search_interval }}"
+                            required
+                        >
+                        <span>分</span>
+                    </div>
+                </label>
+
+                <label class="checkbox-row">
+                    <input
+                        type="checkbox"
+                        name="prime_only"
+                        {% if settings.prime_only %}checked{% endif %}
+                    >
+                    Prime対象商品のみ
+                </label>
+
+                <label class="checkbox-row">
+                    <input
+                        type="checkbox"
+                        name="dry_run"
+                        {% if settings.dry_run %}checked{% endif %}
+                    >
+                    テストモード
+                </label>
+
+                <p class="help-text">
+                    テストモード中は、Xへ実際の投稿を行いません。
+                </p>
+
+                <div class="form-actions">
+                    <a class="secondary-link" href="/">
+                        キャンセル
+                    </a>
+
+                    <button type="submit">
+                        設定を保存
+                    </button>
+                </div>
+            </form>
+        </section>
+    </main>
+</body>
+</html>
