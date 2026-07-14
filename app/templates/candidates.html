@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>投稿候補 | DealPilot</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='/style.css') }}"
+    >
+</head>
+
+<body>
+    <header class="header">
+        <div>
+            <h1>DealPilot</h1>
+            <p>投稿候補</p>
+        </div>
+
+        <nav>
+            <a href="/">ホーム</a>
+            <a href="/candidates">投稿候補</a>
+            <a href="/history">履歴</a>
+            <a href="/settings">設定</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% if message %}
+            <div class="success-message">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <section class="panel">
+            <div class="section-heading">
+                <div>
+                    <h2>投稿候補一覧</h2>
+                    <p class="help-text">
+                        投稿する商品を承認してください。
+                    </p>
+                </div>
+
+                <form
+                    method="post"
+                    action="/candidates/sample"
+                >
+                    <button type="submit">
+                        テスト商品を追加
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        {% if candidates %}
+            <section class="product-grid">
+                {% for product in candidates %}
+                    <article class="product-card">
+                        <div class="discount-badge">
+                            {{ product.discount_rate }}% OFF
+                        </div>
+
+                        <p class="product-category">
+                            {{ product.category }}
+                        </p>
+
+                        <h2>{{ product.title }}</h2>
+
+                        <div class="price-area">
+                            <span class="old-price">
+                                {{ product.original_price }}円
+                            </span>
+
+                            <strong>
+                                {{ product.current_price }}円
+                            </strong>
+                        </div>
+
+                        <p>
+                            評価 {{ product.rating }}
+                            ／レビュー
+                            {{ product.review_count }}件
+                        </p>
+
+                        <div class="button-row">
+                            <form
+                                method="post"
+                                action="/candidates/{{ product.id }}/approve"
+                            >
+                                <button type="submit">
+                                    承認
+                                </button>
+                            </form>
+
+                            <form
+                                method="post"
+                                action="/candidates/{{ product.id }}/reject"
+                            >
+                                <button
+                                    class="danger-button"
+                                    type="submit"
+                                >
+                                    却下
+                                </button>
+                            </form>
+                        </div>
+                    </article>
+                {% endfor %}
+            </section>
+        {% else %}
+            <section class="panel empty-state">
+                <h2>投稿候補はありません</h2>
+                <p>
+                    「テスト商品を追加」を押して、
+                    動作を確認してください。
+                </p>
+            </section>
+        {% endif %}
+    </main>
+</body>
+</html>

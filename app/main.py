@@ -1,15 +1,30 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
+from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-app = FastAPI(title="DealPilot", version="0.1.0")
+from app.database.database import Base, engine, get_database
+from app.models.product_candidate import ProductCandidate
+
+app = FastAPI(
+    title="DealPilot",
+    version="0.2.0",
+)
 
 templates = Jinja2Templates(directory="app/templates")
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+app.mount(
+    "/static",
+    StaticFiles(directory="app/static"),
+    name="static",
+)
 
 SETTINGS_FILE = Path("data/settings.json")
 
@@ -23,8 +38,12 @@ DEFAULT_SETTINGS = {
 }
 
 
+@app.on_event("startup")
+def startup() -> None:
+    Base.metadata.create_all(bind=engine)
+
+
 def load_settings() -> dict:
-    """保存済みの設定を読み込みます。"""
     if not SETTINGS_FILE.exists():
         save_settings(DEFAULT_SETTINGS)
         return DEFAULT_SETTINGS.copy()
@@ -37,35 +56,61 @@ def load_settings() -> dict:
 
     settings = DEFAULT_SETTINGS.copy()
     settings.update(saved_settings)
+
     return settings
 
 
 def save_settings(settings: dict) -> None:
-    """設定をファイルへ保存します。"""
-    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     with SETTINGS_FILE.open("w", encoding="utf-8") as file:
-        json.dump(settings, file, ensure_ascii=False, indent=2)
+        json.dump(
+            settings,
+            file,
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request):
+def home(
+    request: Request,
+    database: Session = Depends(get_database),
+):
     settings = load_settings()
+
+    candidate_count = database.scalar(
+        select(func.count(ProductCandidate.id)).where(
+            ProductCandidate.status == "pending"
+        )
+    ) or 0
+
+    approved_count = database.scalar(
+        select(func.count(ProductCandidate.id)).where(
+            ProductCandidate.status == "approved"
+        )
+    ) or 0
 
     return templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
             "status": "準備完了",
-            "search_count": 0,
-            "post_count": 0,
+            "search_count": candidate_count,
+            "post_count": approved_count,
             "settings": settings,
         },
     )
 
 
 @app.get("/settings", response_class=HTMLResponse)
-def settings_page(request: Request, saved: bool = False):
+def settings_page(
+    request: Request,
+    saved: bool = False,
+):
     return templates.TemplateResponse(
         request=request,
         name="settings.html",
@@ -99,4 +144,123 @@ def update_settings(
     return RedirectResponse(
         url="/settings?saved=true",
         status_code=303,
+    )
+
+
+@app.get("/candidates", response_class=HTMLResponse)
+def candidates_page(
+    request: Request,
+    message: str | None = None,
+    database: Session = Depends(get_database),
+):
+    candidates = database.scalars(
+        select(ProductCandidate)
+        .where(ProductCandidate.status == "pending")
+        .order_by(
+            ProductCandidate.discount_rate.desc(),
+            ProductCandidate.created_at.desc(),
+        )
+    ).all()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="candidates.html",
+        context={
+            "candidates": candidates,
+            "message": message,
+        },
+    )
+
+
+@app.post("/candidates/sample")
+def add_sample_candidate(
+    database: Session = Depends(get_database),
+):
+    sample = ProductCandidate(
+        asin="TEST-ASIN-001",
+        title="テスト用 モバイルバッテリー 10000mAh",
+        category="家電",
+        original_price=4980,
+        current_price=2980,
+        discount_rate=40,
+        rating=4.4,
+        review_count=1520,
+        product_url="https://www.amazon.co.jp/",
+        status="pending",
+    )
+
+    database.add(sample)
+
+    try:
+        database.commit()
+        message = "テスト商品を追加しました。"
+    except IntegrityError:
+        database.rollback()
+        message = "テスト商品はすでに登録されています。"
+
+    return RedirectResponse(
+        url=f"/candidates?message={message}",
+        status_code=303,
+    )
+
+
+@app.post("/candidates/{candidate_id}/approve")
+def approve_candidate(
+    candidate_id: int,
+    database: Session = Depends(get_database),
+):
+    candidate = database.get(
+        ProductCandidate,
+        candidate_id,
+    )
+
+    if candidate is not None:
+        candidate.status = "approved"
+        candidate.decided_at = datetime.now(timezone.utc)
+        database.commit()
+
+    return RedirectResponse(
+        url="/candidates",
+        status_code=303,
+    )
+
+
+@app.post("/candidates/{candidate_id}/reject")
+def reject_candidate(
+    candidate_id: int,
+    database: Session = Depends(get_database),
+):
+    candidate = database.get(
+        ProductCandidate,
+        candidate_id,
+    )
+
+    if candidate is not None:
+        candidate.status = "rejected"
+        candidate.decided_at = datetime.now(timezone.utc)
+        database.commit()
+
+    return RedirectResponse(
+        url="/candidates",
+        status_code=303,
+    )
+
+
+@app.get("/history", response_class=HTMLResponse)
+def history_page(
+    request: Request,
+    database: Session = Depends(get_database),
+):
+    products = database.scalars(
+        select(ProductCandidate)
+        .where(ProductCandidate.status != "pending")
+        .order_by(ProductCandidate.decided_at.desc())
+    ).all()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="history.html",
+        context={
+            "products": products,
+        },
     )

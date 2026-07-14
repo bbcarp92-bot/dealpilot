@@ -2,7 +2,10 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>DealPilot</title>
 
@@ -21,6 +24,8 @@
 
         <nav>
             <a href="/">ホーム</a>
+            <a href="/candidates">投稿候補</a>
+            <a href="/history">履歴</a>
             <a href="/settings">設定</a>
         </nav>
     </header>
@@ -37,18 +42,20 @@
 
         <section class="summary-grid">
             <article class="summary-card">
-                <span>今日の検索件数</span>
+                <span>投稿候補</span>
                 <strong>{{ search_count }}</strong>
             </article>
 
             <article class="summary-card">
-                <span>今日の投稿件数</span>
+                <span>承認済み</span>
                 <strong>{{ post_count }}</strong>
             </article>
 
             <article class="summary-card">
                 <span>最低割引率</span>
-                <strong>{{ settings.minimum_discount }}%</strong>
+                <strong>
+                    {{ settings.minimum_discount }}%
+                </strong>
             </article>
 
             <article class="summary-card">
@@ -63,17 +70,17 @@
         </section>
 
         <section class="panel">
-            <h2>クイック操作</h2>
+            <h2>操作</h2>
 
             <div class="button-row">
-                <button type="button" disabled>商品検索</button>
-                <button type="button" disabled>投稿文を作成</button>
-                <button type="button" disabled>Xへ投稿</button>
-            </div>
+                <a class="primary-link" href="/candidates">
+                    投稿候補を見る
+                </a>
 
-            <p class="help-text">
-                ボタンの機能は、今後の作業で追加します。
-            </p>
+                <a class="secondary-link" href="/history">
+                    履歴を見る
+                </a>
+            </div>
         </section>
 
         <section class="panel">
@@ -101,7 +108,9 @@
 
                 <div>
                     <dt>検索間隔</dt>
-                    <dd>{{ settings.search_interval }}分</dd>
+                    <dd>
+                        {{ settings.search_interval }}分
+                    </dd>
                 </div>
             </dl>
 

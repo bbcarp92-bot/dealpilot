@@ -1,0 +1,66 @@
+from datetime import datetime, timezone
+
+from sqlalchemy import DateTime, Float, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database.database import Base
+
+
+class ProductCandidate(Base):
+    __tablename__ = "product_candidates"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    asin: Mapped[str] = mapped_column(
+        String(20),
+        unique=True,
+        index=True,
+    )
+
+    title: Mapped[str] = mapped_column(String(500))
+
+    category: Mapped[str] = mapped_column(
+        String(100),
+        default="未分類",
+    )
+
+    original_price: Mapped[int] = mapped_column(Integer)
+
+    current_price: Mapped[int] = mapped_column(Integer)
+
+    discount_rate: Mapped[int] = mapped_column(Integer)
+
+    rating: Mapped[float] = mapped_column(
+        Float,
+        default=0,
+    )
+
+    review_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+    )
+
+    product_url: Mapped[str] = mapped_column(
+        String(1000),
+        default="",
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="pending",
+        index=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
