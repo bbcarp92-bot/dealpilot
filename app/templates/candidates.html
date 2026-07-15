@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -24,6 +25,7 @@
 
         <nav>
             <a href="/">ホーム</a>
+            <a href="/products/new">商品登録</a>
             <a href="/candidates">投稿候補</a>
             <a href="/history">履歴</a>
             <a href="/settings">設定</a>
@@ -41,12 +43,21 @@
             <div class="section-heading">
                 <div>
                     <h2>投稿候補一覧</h2>
+
                     <p class="help-text">
-                        現在の設定条件に合った商品だけ表示されます。
+                        設定条件に合った商品を確認し、
+                        投稿文の編集・承認・却下ができます。
                     </p>
                 </div>
 
                 <div class="button-row">
+                    <a
+                        class="primary-link"
+                        href="/products/new"
+                    >
+                        商品を手動登録
+                    </a>
+
                     <form
                         method="post"
                         action="/candidates/sample-batch"
@@ -75,39 +86,64 @@
             <section class="product-grid">
                 {% for product in candidates %}
                     <article class="product-card">
-                        <div class="discount-badge">
-                            {{ product.discount_rate }}% OFF
-                        </div>
-
-                        {% if product.is_prime %}
-                            <span class="prime-badge">
-                                Prime
+                        <div>
+                            <span class="discount-badge">
+                                {{ product.discount_rate }}% OFF
                             </span>
-                        {% endif %}
+
+                            {% if product.is_prime %}
+                                <span class="prime-badge">
+                                    Prime
+                                </span>
+                            {% endif %}
+                        </div>
 
                         <p class="product-category">
                             {{ product.category }}
                         </p>
 
-                        <h2>{{ product.title }}</h2>
+                        <h2>
+                            {{ product.title }}
+                        </h2>
 
                         <div class="price-area">
                             <span class="old-price">
-                                {{ product.original_price }}円
+                                {{ "{:,}".format(product.original_price) }}円
                             </span>
 
                             <strong>
-                                {{ product.current_price }}円
+                                {{ "{:,}".format(product.current_price) }}円
                             </strong>
                         </div>
 
                         <p>
                             評価 {{ product.rating }}
-                            ／レビュー
-                            {{ product.review_count }}件
+                            ／ レビュー
+                            {{ "{:,}".format(product.review_count) }}件
+                        </p>
+
+                        <div class="score-box">
+                            <strong>
+                                {{ product.score }}点
+                            </strong>
+
+                            <span>
+                                {{ product.score_label }}
+                            </span>
+                        </div>
+
+                        <p class="help-text">
+                            {{ product.score_reason }}
                         </p>
 
                         <div class="button-row">
+                            <a
+                                class="secondary-link"
+                                href="/candidates/{{ product.id }}/preview"
+                            >
+                                投稿文を見る
+                            </a>
+
                             <form
                                 method="post"
                                 action="/candidates/{{ product.id }}/approve"
@@ -137,8 +173,27 @@
                 <h2>投稿候補はありません</h2>
 
                 <p>
+                    「商品を手動登録」または
                     「テスト商品を検索」を押してください。
                 </p>
+
+                <div class="button-row">
+                    <a
+                        class="primary-link"
+                        href="/products/new"
+                    >
+                        商品を手動登録
+                    </a>
+
+                    <form
+                        method="post"
+                        action="/candidates/sample-batch"
+                    >
+                        <button type="submit">
+                            テスト商品を検索
+                        </button>
+                    </form>
+                </div>
             </section>
         {% endif %}
     </main>

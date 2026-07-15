@@ -394,3 +394,81 @@ input[type="number"] {
     font-size: 13px;
     font-weight: bold;
 }
+
+input[type="text"],
+input[type="url"],
+select,
+textarea {
+    width: 100%;
+    margin-top: 8px;
+    padding: 11px;
+    border: 1px solid #cbd2d9;
+    border-radius: 7px;
+    background: white;
+    font-family: inherit;
+    font-size: 16px;
+}
+
+textarea {
+    min-height: 310px;
+    line-height: 1.7;
+    resize: vertical;
+}
+
+.preview-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 24px;
+}
+
+.score-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0 8px;
+}
+
+.score-box strong {
+    font-size: 27px;
+}
+
+.score-box span {
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #eef3f7;
+    color: #45525e;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.score-reason {
+    padding: 15px;
+    border-radius: 8px;
+    background: #f4f7f9;
+}
+
+.score-reason p {
+    margin-bottom: 0;
+    line-height: 1.7;
+}
+
+.secondary-button {
+    background: #e7ebef;
+    color: #25313d;
+}
+
+.secondary-button:hover {
+    background: #d9dfe4;
+}
+
+.approve-form {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e1e6eb;
+}
+
+@media (max-width: 800px) {
+    .preview-grid {
+        grid-template-columns: 1fr;
+    }
+}

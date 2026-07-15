@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>商品登録 | DealPilot</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='/style.css') }}"
+    >
+</head>
+
+<body>
+    <header class="header">
+        <div>
+            <h1>DealPilot</h1>
+            <p>商品を手動登録</p>
+        </div>
+
+        <nav>
+            <a href="/">ホーム</a>
+            <a href="/products/new">商品登録</a>
+            <a href="/candidates">投稿候補</a>
+            <a href="/history">履歴</a>
+            <a href="/settings">設定</a>
+        </nav>
+    </header>
+
+    <main class="container narrow">
+        {% if message %}
+            <div class="success-message">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <section class="panel">
+            <h2>Amazon商品を登録</h2>
+
+            <p class="help-text">
+                Amazonの商品ページを確認しながら入力してください。
+            </p>
+
+            <form method="post" action="/products/new">
+                <label>
+                    商品名
+                    <input
+                        type="text"
+                        name="title"
+                        maxlength="500"
+                        required
+                    >
+                </label>
+
+                <div class="two-column">
+                    <label>
+                        ASIN
+                        <input
+                            type="text"
+                            name="asin"
+                            maxlength="20"
+                            required
+                        >
+                    </label>
+
+                    <label>
+                        カテゴリ
+                        <select name="category" required>
+                            <option value="家電">家電</option>
+                            <option value="PC">PC・周辺機器</option>
+                            <option value="ゲーム">ゲーム</option>
+                            <option value="ホーム">ホーム・キッチン</option>
+                            <option value="食品">食品・飲料</option>
+                            <option value="日用品">日用品</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="two-column">
+                    <label>
+                        通常価格
+                        <div class="input-with-unit">
+                            <input
+                                type="number"
+                                name="original_price"
+                                min="1"
+                                required
+                            >
+                            <span>円</span>
+                        </div>
+                    </label>
+
+                    <label>
+                        現在価格
+                        <div class="input-with-unit">
+                            <input
+                                type="number"
+                                name="current_price"
+                                min="1"
+                                required
+                            >
+                            <span>円</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="two-column">
+                    <label>
+                        評価
+                        <input
+                            type="number"
+                            name="rating"
+                            min="0"
+                            max="5"
+                            step="0.1"
+                            value="0"
+                        >
+                    </label>
+
+                    <label>
+                        レビュー数
+                        <input
+                            type="number"
+                            name="review_count"
+                            min="0"
+                            value="0"
+                        >
+                    </label>
+                </div>
+
+                <label>
+                    Amazon商品ページURL
+                    <input
+                        type="url"
+                        name="product_url"
+                        placeholder="https://www.amazon.co.jp/..."
+                    >
+                </label>
+
+                <label>
+                    アソシエイトリンク
+                    <input
+                        type="url"
+                        name="affiliate_url"
+                        placeholder="https://amzn.to/..."
+                        required
+                    >
+                </label>
+
+                <label class="checkbox-row">
+                    <input
+                        type="checkbox"
+                        name="is_prime"
+                    >
+                    Prime対象商品
+                </label>
+
+                <div class="form-actions">
+                    <a
+                        class="secondary-link"
+                        href="/candidates"
+                    >
+                        キャンセル
+                    </a>
+
+                    <button type="submit">
+                        登録して投稿文を作る
+                    </button>
+                </div>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>投稿プレビュー | DealPilot</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='/style.css') }}"
+    >
+</head>
+
+<body>
+    <header class="header">
+        <div>
+            <h1>DealPilot</h1>
+            <p>投稿プレビュー</p>
+        </div>
+
+        <nav>
+            <a href="/">ホーム</a>
+            <a href="/products/new">商品登録</a>
+            <a href="/candidates">投稿候補</a>
+            <a href="/history">履歴</a>
+            <a href="/settings">設定</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% if saved %}
+            <div class="success-message">
+                投稿文を保存しました。
+            </div>
+        {% endif %}
+
+        <section class="preview-grid">
+            <article class="panel">
+                <div class="discount-badge">
+                    {{ product.discount_rate }}% OFF
+                </div>
+
+                {% if product.is_prime %}
+                    <span class="prime-badge">
+                        Prime
+                    </span>
+                {% endif %}
+
+                <h2>{{ product.title }}</h2>
+
+                <div class="price-area">
+                    <span class="old-price">
+                        {{ "{:,}".format(product.original_price) }}円
+                    </span>
+
+                    <strong>
+                        {{ "{:,}".format(product.current_price) }}円
+                    </strong>
+                </div>
+
+                <dl class="settings-summary">
+                    <div>
+                        <dt>ASIN</dt>
+                        <dd>{{ product.asin }}</dd>
+                    </div>
+
+                    <div>
+                        <dt>評価</dt>
+                        <dd>
+                            {{ product.rating }}
+                            ／ {{ product.review_count }}件
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt>スコア</dt>
+                        <dd>
+                            {{ product.score }}点
+                            （{{ product.score_label }}）
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="score-reason">
+                    <strong>採点理由</strong>
+                    <p>{{ product.score_reason }}</p>
+                </div>
+            </article>
+
+            <article class="panel">
+                <h2>X投稿文</h2>
+
+                <form
+                    method="post"
+                    action="/candidates/{{ product.id }}/preview"
+                >
+                    <textarea
+                        id="draft-text"
+                        name="draft_text"
+                        rows="14"
+                        maxlength="1000"
+                        required
+                    >{{ product.draft_text }}</textarea>
+
+                    <p class="help-text">
+                        現段階ではXへ自動投稿されません。
+                    </p>
+
+                    <div class="form-actions">
+                        <button
+                            class="secondary-button"
+                            type="button"
+                            onclick="copyDraftText()"
+                        >
+                            投稿文をコピー
+                        </button>
+
+                        <button type="submit">
+                            投稿文を保存
+                        </button>
+                    </div>
+                </form>
+
+                <form
+                    method="post"
+                    action="/candidates/{{ product.id }}/approve"
+                    class="approve-form"
+                >
+                    <button type="submit">
+                        この商品を承認
+                    </button>
+                </form>
+            </article>
+        </section>
+    </main>
+
+    <script>
+        async function copyDraftText() {
+            const draftText =
+                document.getElementById("draft-text");
+
+            try {
+                await navigator.clipboard.writeText(
+                    draftText.value
+                );
+
+                alert("投稿文をコピーしました。");
+            } catch {
+                draftText.select();
+                document.execCommand("copy");
+
+                alert("投稿文をコピーしました。");
+            }
+        }
+    </script>
+</body>
+</html>
