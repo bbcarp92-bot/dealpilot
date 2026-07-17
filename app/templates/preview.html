@@ -39,6 +39,13 @@
             </div>
         {% endif %}
 
+        {% if updated %}
+            <div class="success-message">
+                登録済み商品の価格・評価・スコアを更新しました。
+                投稿文は手直しした内容を守るため、自動変更していません。
+            </div>
+        {% endif %}
+
         {% if error_message %}
             <div class="error-message">
                 {{ error_message }}

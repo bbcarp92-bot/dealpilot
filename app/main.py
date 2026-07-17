@@ -406,6 +406,7 @@ def preview_candidate(
     candidate_id: int,
     request: Request,
     saved: bool = False,
+    updated: bool = False,
     error: str | None = None,
     database: Session = Depends(get_database),
 ):
@@ -442,6 +443,7 @@ def preview_candidate(
         context={
             "product": product,
             "saved": saved,
+            "updated": updated,
             "error_message": error_message,
             "character_count": character_count,
             "is_valid": is_valid,
@@ -836,18 +838,6 @@ def add_search_result_to_candidates(
 ):
     cleaned_asin = asin.strip().upper()
 
-    existing_product = database.scalar(
-        select(ProductCandidate).where(
-            ProductCandidate.asin == cleaned_asin
-        )
-    )
-
-    if existing_product is not None:
-        return RedirectResponse(
-            url=f"/candidates/{existing_product.id}/preview",
-            status_code=303,
-    )
-
     discount_rate = calculate_discount_rate(
         original_price=original_price,
         current_price=current_price,
@@ -861,6 +851,39 @@ def add_search_result_to_candidates(
         current_price=current_price,
     )
 
+    existing_product = database.scalar(
+        select(ProductCandidate).where(
+            ProductCandidate.asin == cleaned_asin
+        )
+    )
+
+    # 同じASINが登録済みなら、商品情報を最新状態へ更新する
+    if existing_product is not None:
+        existing_product.title = title.strip()
+        existing_product.category = category.strip()
+        existing_product.original_price = original_price
+        existing_product.current_price = current_price
+        existing_product.discount_rate = discount_rate
+        existing_product.rating = rating
+        existing_product.review_count = review_count
+        existing_product.is_prime = is_prime
+        existing_product.product_url = product_url.strip()
+        existing_product.affiliate_url = affiliate_url.strip()
+        existing_product.score = score
+        existing_product.score_label = get_score_label(score)
+        existing_product.score_reason = score_reason
+
+        database.commit()
+
+        return RedirectResponse(
+            url=(
+                f"/candidates/{existing_product.id}/preview"
+                "?updated=true"
+            ),
+            status_code=303,
+        )
+
+    # 未登録の商品は新しく保存する
     product = ProductCandidate(
         asin=cleaned_asin,
         title=title.strip(),
@@ -880,9 +903,7 @@ def add_search_result_to_candidates(
         filter_reason="Amazon検索から登録",
     )
 
-    product.draft_text = create_draft_text(
-        product
-    )
+    product.draft_text = create_draft_text(product)
 
     database.add(product)
 
