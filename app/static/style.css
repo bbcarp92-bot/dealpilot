@@ -527,3 +527,30 @@ textarea {
         flex-direction: column;
     }
 }
+
+.filtered-product-card {
+    border-color: #e3c78d;
+    background: #fffdf7;
+    opacity: 0.82;
+}
+
+.accepted-message,
+.filtered-message {
+    padding: 10px 12px;
+    margin: 14px 0;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.accepted-message {
+    border: 1px solid #9bd4b4;
+    background: #e8f7ee;
+    color: #146c3c;
+}
+
+.filtered-message {
+    border: 1px solid #e1c179;
+    background: #fff3d8;
+    color: #805700;
+}

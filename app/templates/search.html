@@ -62,26 +62,61 @@
             </form>
 
             <p class="help-text">
-                現在は動作確認用の商品が表示されます。
+                現在は動作確認用の商品を表示しています。
             </p>
         </section>
 
-        {% if products %}
-            <section class="product-grid">
-                {% for product in products %}
-                    <article class="product-card">
-                        {% set discount_rate = (
-                            (
-                                product.original_price
-                                - product.current_price
-                            )
-                            / product.original_price
-                            * 100
-                        ) | round | int %}
+        <section class="panel">
+            <h2>現在の絞り込み条件</h2>
 
+            <dl class="settings-summary">
+                <div>
+                    <dt>最低割引率</dt>
+                    <dd>{{ settings.minimum_discount }}%</dd>
+                </div>
+
+                <div>
+                    <dt>価格</dt>
+                    <dd>
+                        {{ "{:,}".format(settings.minimum_price) }}円～
+                        {{ "{:,}".format(settings.maximum_price) }}円
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Prime対象のみ</dt>
+                    <dd>
+                        {% if settings.prime_only %}
+                            ON
+                        {% else %}
+                            OFF
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+
+            <a
+                class="secondary-link"
+                href="/settings"
+            >
+                条件を変更する
+            </a>
+        </section>
+
+        {% if search_results %}
+            <section class="product-grid">
+                {% for result in search_results %}
+                    {% set product = result.product %}
+
+                    <article
+                        class="product-card
+                        {% if not result.accepted %}
+                            filtered-product-card
+                        {% endif %}"
+                    >
                         <div>
                             <span class="discount-badge">
-                                {{ discount_rate }}% OFF
+                                {{ result.discount_rate }}% OFF
                             </span>
 
                             {% if product.is_prime %}
@@ -119,78 +154,105 @@
                             ) }}件
                         </p>
 
+                        <div class="score-box">
+                            <strong>
+                                {{ result.score }}点
+                            </strong>
+
+                            <span>
+                                {{ result.score_label }}
+                            </span>
+                        </div>
+
                         <p class="help-text">
-                            ASIN：{{ product.asin }}
+                            {{ result.score_reason }}
                         </p>
 
-                        <form
-                            method="post"
-                            action="/amazon/search/add"
-                        >
-                            <input
-                                type="hidden"
-                                name="asin"
-                                value="{{ product.asin }}"
-                            >
+                        {% if result.accepted %}
+                            <div class="accepted-message">
+                                設定条件に一致しています。
+                            </div>
 
-                            <input
-                                type="hidden"
-                                name="title"
-                                value="{{ product.title }}"
+                            <form
+                                method="post"
+                                action="/amazon/search/add"
                             >
+                                <input
+                                    type="hidden"
+                                    name="asin"
+                                    value="{{ product.asin }}"
+                                >
 
-                            <input
-                                type="hidden"
-                                name="category"
-                                value="{{ product.category }}"
+                                <input
+                                    type="hidden"
+                                    name="title"
+                                    value="{{ product.title }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="category"
+                                    value="{{ product.category }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="original_price"
+                                    value="{{ product.original_price }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="current_price"
+                                    value="{{ product.current_price }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="rating"
+                                    value="{{ product.rating }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="review_count"
+                                    value="{{ product.review_count }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="is_prime"
+                                    value="{{ product.is_prime }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="product_url"
+                                    value="{{ product.product_url }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="affiliate_url"
+                                    value="{{ product.affiliate_url }}"
+                                >
+
+                                <button type="submit">
+                                    投稿候補へ追加
+                                </button>
+                            </form>
+                        {% else %}
+                            <div class="filtered-message">
+                                除外理由：{{ result.filter_reason }}
+                            </div>
+
+                            <button
+                                type="button"
+                                disabled
                             >
-
-                            <input
-                                type="hidden"
-                                name="original_price"
-                                value="{{ product.original_price }}"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="current_price"
-                                value="{{ product.current_price }}"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="rating"
-                                value="{{ product.rating }}"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="review_count"
-                                value="{{ product.review_count }}"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="is_prime"
-                                value="{{ product.is_prime }}"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="product_url"
-                                value="{{ product.product_url }}"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="affiliate_url"
-                                value="{{ product.affiliate_url }}"
-                            >
-
-                            <button type="submit">
-                                投稿候補へ追加
+                                条件外の商品
                             </button>
-                        </form>
+                        {% endif %}
                     </article>
                 {% endfor %}
             </section>

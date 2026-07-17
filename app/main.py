@@ -737,10 +737,11 @@ def amazon_search_page(
         request=request,
         name="search.html",
         context={
-            "products": None,
+            "search_results": None,
             "keyword": "",
             "searched": False,
             "message": message,
+            "settings": load_settings(),
         },
     )
 
@@ -754,19 +755,67 @@ def amazon_search_results(
     keyword: str = Form(...),
 ):
     cleaned_keyword = keyword.strip()
+    settings = load_settings()
 
-    products = search_amazon(
-        cleaned_keyword
+    products = search_amazon(cleaned_keyword)
+
+    search_results = []
+
+    for product in products:
+        discount_rate = calculate_discount_rate(
+            original_price=product.original_price,
+            current_price=product.current_price,
+        )
+
+        product_data = {
+            "discount_rate": discount_rate,
+            "current_price": product.current_price,
+            "is_prime": product.is_prime,
+        }
+
+        accepted, filter_reason = check_product(
+            product=product_data,
+            settings=settings,
+        )
+
+        score, score_reason = calculate_product_score(
+            discount_rate=discount_rate,
+            rating=product.rating,
+            review_count=product.review_count,
+            is_prime=product.is_prime,
+            current_price=product.current_price,
+        )
+
+        search_results.append(
+            {
+                "product": product,
+                "discount_rate": discount_rate,
+                "accepted": accepted,
+                "filter_reason": filter_reason,
+                "score": score,
+                "score_label": get_score_label(score),
+                "score_reason": score_reason,
+            }
+        )
+
+    search_results.sort(
+        key=lambda item: (
+            item["accepted"],
+            item["score"],
+            item["discount_rate"],
+        ),
+        reverse=True,
     )
 
     return templates.TemplateResponse(
         request=request,
         name="search.html",
         context={
-            "products": products,
+            "search_results": search_results,
             "keyword": cleaned_keyword,
             "searched": True,
             "message": None,
+            "settings": settings,
         },
     )
 
