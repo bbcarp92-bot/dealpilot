@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Amazon検索 | DealPilot</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='/style.css') }}"
+    >
+</head>
+
+<body>
+    <header class="header">
+        <div>
+            <h1>DealPilot</h1>
+            <p>Amazon商品検索</p>
+        </div>
+
+        <nav>
+            <a href="/">ホーム</a>
+            <a href="/amazon/search">Amazon検索</a>
+            <a href="/products/new">商品登録</a>
+            <a href="/candidates">投稿候補</a>
+            <a href="/history">履歴</a>
+            <a href="/settings">設定</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% if message %}
+            <div class="success-message">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <section class="panel">
+            <h2>商品を検索</h2>
+
+            <form
+                method="post"
+                action="/amazon/search"
+                class="search-form"
+            >
+                <input
+                    type="text"
+                    name="keyword"
+                    value="{{ keyword or '' }}"
+                    placeholder="例：SSD、モバイルバッテリー"
+                    required
+                >
+
+                <button type="submit">
+                    検索
+                </button>
+            </form>
+
+            <p class="help-text">
+                現在は動作確認用の商品が表示されます。
+            </p>
+        </section>
+
+        {% if products %}
+            <section class="product-grid">
+                {% for product in products %}
+                    <article class="product-card">
+                        {% set discount_rate = (
+                            (
+                                product.original_price
+                                - product.current_price
+                            )
+                            / product.original_price
+                            * 100
+                        ) | round | int %}
+
+                        <div>
+                            <span class="discount-badge">
+                                {{ discount_rate }}% OFF
+                            </span>
+
+                            {% if product.is_prime %}
+                                <span class="prime-badge">
+                                    Prime
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <p class="product-category">
+                            {{ product.category }}
+                        </p>
+
+                        <h2>{{ product.title }}</h2>
+
+                        <div class="price-area">
+                            <span class="old-price">
+                                {{ "{:,}".format(
+                                    product.original_price
+                                ) }}円
+                            </span>
+
+                            <strong>
+                                {{ "{:,}".format(
+                                    product.current_price
+                                ) }}円
+                            </strong>
+                        </div>
+
+                        <p>
+                            評価 {{ product.rating }}
+                            ／レビュー
+                            {{ "{:,}".format(
+                                product.review_count
+                            ) }}件
+                        </p>
+
+                        <p class="help-text">
+                            ASIN：{{ product.asin }}
+                        </p>
+
+                        <form
+                            method="post"
+                            action="/amazon/search/add"
+                        >
+                            <input
+                                type="hidden"
+                                name="asin"
+                                value="{{ product.asin }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="title"
+                                value="{{ product.title }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="category"
+                                value="{{ product.category }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="original_price"
+                                value="{{ product.original_price }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="current_price"
+                                value="{{ product.current_price }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="rating"
+                                value="{{ product.rating }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="review_count"
+                                value="{{ product.review_count }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="is_prime"
+                                value="{{ product.is_prime }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="product_url"
+                                value="{{ product.product_url }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="affiliate_url"
+                                value="{{ product.affiliate_url }}"
+                            >
+
+                            <button type="submit">
+                                投稿候補へ追加
+                            </button>
+                        </form>
+                    </article>
+                {% endfor %}
+            </section>
+        {% elif searched %}
+            <section class="panel empty-state">
+                <h2>商品が見つかりませんでした</h2>
+
+                <p>
+                    検索キーワードを変更してください。
+                </p>
+            </section>
+        {% endif %}
+    </main>
+</body>
+</html>

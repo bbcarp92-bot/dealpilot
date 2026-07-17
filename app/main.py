@@ -12,12 +12,18 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.amazon.search import search_amazon
 from app.database.database import Base, engine, get_database
 from app.models.product_candidate import ProductCandidate
 from app.sample_products import SAMPLE_PRODUCTS
 from app.scoring.product_score import (
     calculate_product_score,
     get_score_label,
+)
+from app.services.x_character_counter import (
+    X_MAX_WEIGHTED_LENGTH,
+    X_RECOMMENDED_LENGTH,
+    count_x_characters,
 )
 
 
@@ -29,7 +35,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="DealPilot",
-    version="0.4.0",
+    version="0.5.0",
     lifespan=lifespan,
 )
 
@@ -138,15 +144,23 @@ def check_product(
     return True, "設定条件に一致"
 
 
+def get_x_text_info(text: str) -> tuple[int, bool]:
+    result = count_x_characters(text)
+
+    return result.weighted_length, result.is_valid
+
+
 def create_draft_text(
     product: ProductCandidate,
 ) -> str:
-    prime_text = "Prime対象" if product.is_prime else ""
+    product_name = product.title.strip()
 
-    details = [
+    if len(product_name) > 70:
+        product_name = product_name[:67] + "..."
+
+    lines = [
         f"【{product.discount_rate}%OFF】",
-        "",
-        product.title,
+        product_name,
         "",
         (
             f"{product.original_price:,}円"
@@ -154,27 +168,44 @@ def create_draft_text(
         ),
     ]
 
+    product_details: list[str] = []
+
+    if product.is_prime:
+        product_details.append("Prime対象")
+
     if product.rating > 0:
-        details.append(
-            f"評価 {product.rating}／"
-            f"レビュー {product.review_count:,}件"
-        )
+        product_details.append(f"評価{product.rating}")
 
-    if prime_text:
-        details.append(prime_text)
+    if product_details:
+        lines.append("・".join(product_details))
 
-    details.extend(
+    lines.extend(
         [
             "",
-            "気になる方は商品ページを確認してください。",
-            "",
+            "▼Amazon",
             product.affiliate_url,
             "",
-            "#PR #Amazonアソシエイト",
+            "#PR #Amazon",
         ]
     )
 
-    return "\n".join(details)
+    draft_text = "\n".join(lines)
+
+    if len(draft_text) > X_MAX_WEIGHTED_LENGTH:
+        short_lines = [
+            f"【{product.discount_rate}%OFF】",
+            product_name[:45],
+            (
+                f"{product.original_price:,}円"
+                f" → {product.current_price:,}円"
+            ),
+            product.affiliate_url,
+            "#PR #Amazon",
+        ]
+
+        draft_text = "\n".join(short_lines)
+
+    return draft_text
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -283,6 +314,7 @@ def create_manual_product(
     database: Session = Depends(get_database),
 ):
     asin = asin.strip().upper()
+
     discount_rate = calculate_discount_rate(
         original_price,
         current_price,
@@ -374,6 +406,7 @@ def preview_candidate(
     candidate_id: int,
     request: Request,
     saved: bool = False,
+    error: str | None = None,
     database: Session = Depends(get_database),
 ):
     product = database.get(
@@ -391,12 +424,27 @@ def preview_candidate(
         product.draft_text = create_draft_text(product)
         database.commit()
 
+    character_count, is_valid = get_x_text_info(
+        product.draft_text
+    )
+
+    error_message = None
+
+    if error == "too-long":
+        error_message = (
+            "Xの文字数上限を超えています。"
+            "文章を短くしてください。"
+        )
+
     return templates.TemplateResponse(
         request=request,
         name="preview.html",
         context={
             "product": product,
             "saved": saved,
+            "error_message": error_message,
+            "character_count": character_count,
+            "is_valid": is_valid,
         },
     )
 
@@ -405,6 +453,7 @@ def preview_candidate(
 def save_preview_text(
     candidate_id: int,
     draft_text: str = Form(...),
+    action: str = Form("save"),
     database: Session = Depends(get_database),
 ):
     product = database.get(
@@ -412,12 +461,44 @@ def save_preview_text(
         candidate_id,
     )
 
-    if product is not None:
-        product.draft_text = draft_text.strip()
-        database.commit()
+    if product is None:
+        return RedirectResponse(
+            url="/candidates",
+            status_code=303,
+        )
+
+    cleaned_text = draft_text.strip()
+
+    _, is_valid = get_x_text_info(cleaned_text)
+
+    if not is_valid:
+        return RedirectResponse(
+            url=(
+                f"/candidates/{candidate_id}/preview"
+                "?error=too-long"
+            ),
+            status_code=303,
+        )
+
+    product.draft_text = cleaned_text
+
+    if action == "approve":
+        product.status = "approved"
+        product.decided_at = datetime.now(timezone.utc)
+
+    database.commit()
+
+    if action == "approve":
+        return RedirectResponse(
+            url="/history",
+            status_code=303,
+        )
 
     return RedirectResponse(
-        url=f"/candidates/{candidate_id}/preview?saved=true",
+        url=(
+            f"/candidates/{candidate_id}/preview"
+            "?saved=true"
+        ),
         status_code=303,
     )
 
@@ -476,6 +557,7 @@ def add_sample_products(
         )
 
         product.draft_text = create_draft_text(product)
+
         database.add(product)
 
         if accepted:
@@ -506,6 +588,7 @@ def reset_test_data(
             ProductCandidate.asin.like("TEST%")
         )
     )
+
     database.commit()
 
     message = quote(
@@ -528,13 +611,32 @@ def approve_candidate(
         candidate_id,
     )
 
-    if candidate is not None:
-        candidate.status = "approved"
-        candidate.decided_at = datetime.now(timezone.utc)
-        database.commit()
+    if candidate is None:
+        return RedirectResponse(
+            url="/candidates",
+            status_code=303,
+        )
+
+    _, is_valid = get_x_text_info(
+        candidate.draft_text.strip()
+    )
+
+    if not is_valid:
+        return RedirectResponse(
+            url=(
+                f"/candidates/{candidate_id}/preview"
+                "?error=too-long"
+            ),
+            status_code=303,
+        )
+
+    candidate.status = "approved"
+    candidate.decided_at = datetime.now(timezone.utc)
+
+    database.commit()
 
     return RedirectResponse(
-        url="/candidates",
+        url="/history",
         status_code=303,
     )
 
@@ -560,6 +662,20 @@ def reject_candidate(
     )
 
 
+@app.post("/x-character-count")
+def x_character_count(
+    draft_text: str = Form(""),
+):
+    character_count, is_valid = get_x_text_info(
+        draft_text
+    )
+
+    return {
+        "character_count": character_count,
+        "is_valid": is_valid,
+    }
+
+
 @app.get("/history", response_class=HTMLResponse)
 def history_page(
     request: Request,
@@ -577,4 +693,166 @@ def history_page(
         context={
             "products": products,
         },
+    )
+
+
+from app.amazon.search import search_amazon
+def amazon_search_page(
+    request: Request,
+):
+    return templates.TemplateResponse(
+        request=request,
+        name="search.html",
+        context={
+            "products": None,
+        },
+    )
+
+
+def amazon_search(
+    request: Request,
+    keyword: str = Form(...),
+):
+
+    products = search_amazon(keyword)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="search.html",
+        context={
+            "products": products,
+        },
+    )
+
+
+@app.get(
+    "/amazon/search",
+    response_class=HTMLResponse,
+)
+def amazon_search_page(
+    request: Request,
+    message: str | None = None,
+):
+    return templates.TemplateResponse(
+        request=request,
+        name="search.html",
+        context={
+            "products": None,
+            "keyword": "",
+            "searched": False,
+            "message": message,
+        },
+    )
+
+
+@app.post(
+    "/amazon/search",
+    response_class=HTMLResponse,
+)
+def amazon_search_results(
+    request: Request,
+    keyword: str = Form(...),
+):
+    cleaned_keyword = keyword.strip()
+
+    products = search_amazon(
+        cleaned_keyword
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="search.html",
+        context={
+            "products": products,
+            "keyword": cleaned_keyword,
+            "searched": True,
+            "message": None,
+        },
+    )
+
+
+@app.post("/amazon/search/add")
+def add_search_result_to_candidates(
+    asin: str = Form(...),
+    title: str = Form(...),
+    category: str = Form(...),
+    original_price: int = Form(...),
+    current_price: int = Form(...),
+    rating: float = Form(0),
+    review_count: int = Form(0),
+    is_prime: bool = Form(False),
+    product_url: str = Form(""),
+    affiliate_url: str = Form(""),
+    database: Session = Depends(get_database),
+):
+    cleaned_asin = asin.strip().upper()
+
+    existing_product = database.scalar(
+        select(ProductCandidate).where(
+            ProductCandidate.asin == cleaned_asin
+        )
+    )
+
+    if existing_product is not None:
+        return RedirectResponse(
+            url=f"/candidates/{existing_product.id}/preview",
+            status_code=303,
+    )
+
+    discount_rate = calculate_discount_rate(
+        original_price=original_price,
+        current_price=current_price,
+    )
+
+    score, score_reason = calculate_product_score(
+        discount_rate=discount_rate,
+        rating=rating,
+        review_count=review_count,
+        is_prime=is_prime,
+        current_price=current_price,
+    )
+
+    product = ProductCandidate(
+        asin=cleaned_asin,
+        title=title.strip(),
+        category=category.strip(),
+        original_price=original_price,
+        current_price=current_price,
+        discount_rate=discount_rate,
+        rating=rating,
+        review_count=review_count,
+        is_prime=is_prime,
+        product_url=product_url.strip(),
+        affiliate_url=affiliate_url.strip(),
+        score=score,
+        score_label=get_score_label(score),
+        score_reason=score_reason,
+        status="pending",
+        filter_reason="Amazon検索から登録",
+    )
+
+    product.draft_text = create_draft_text(
+        product
+    )
+
+    database.add(product)
+
+    try:
+        database.commit()
+        database.refresh(product)
+    except IntegrityError:
+        database.rollback()
+
+        message = quote(
+            "商品の登録に失敗しました。"
+        )
+
+        return RedirectResponse(
+            url=f"/amazon/search?message={message}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/candidates/{product.id}/preview",
+        status_code=303,
     )

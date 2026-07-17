@@ -472,3 +472,58 @@ textarea {
         grid-template-columns: 1fr;
     }
 }
+
+.character-status {
+    display: flex;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 5px;
+    margin-top: 10px;
+    font-size: 15px;
+}
+
+.character-status strong {
+    font-size: 22px;
+}
+
+.count-safe {
+    color: #167343;
+}
+
+.count-warning {
+    color: #b56a00;
+}
+
+.count-danger,
+.danger-text {
+    color: #bd2d2d;
+}
+
+.error-message {
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    border: 1px solid #e2a4a4;
+    border-radius: 8px;
+    background: #fdecec;
+    color: #9c2424;
+}
+
+.search-form {
+    display: flex;
+    gap: 12px;
+}
+
+.search-form input {
+    flex: 1;
+    margin-top: 0;
+}
+
+.search-form button {
+    flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+    .search-form {
+        flex-direction: column;
+    }
+}

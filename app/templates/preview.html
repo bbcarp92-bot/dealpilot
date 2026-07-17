@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -38,17 +39,25 @@
             </div>
         {% endif %}
 
+        {% if error_message %}
+            <div class="error-message">
+                {{ error_message }}
+            </div>
+        {% endif %}
+
         <section class="preview-grid">
             <article class="panel">
-                <div class="discount-badge">
-                    {{ product.discount_rate }}% OFF
-                </div>
-
-                {% if product.is_prime %}
-                    <span class="prime-badge">
-                        Prime
+                <div>
+                    <span class="discount-badge">
+                        {{ product.discount_rate }}% OFF
                     </span>
-                {% endif %}
+
+                    {% if product.is_prime %}
+                        <span class="prime-badge">
+                            Prime
+                        </span>
+                    {% endif %}
+                </div>
 
                 <h2>{{ product.title }}</h2>
 
@@ -97,17 +106,30 @@
                 <form
                     method="post"
                     action="/candidates/{{ product.id }}/preview"
+                    id="preview-form"
                 >
                     <textarea
                         id="draft-text"
                         name="draft_text"
                         rows="14"
-                        maxlength="1000"
                         required
                     >{{ product.draft_text }}</textarea>
 
-                    <p class="help-text">
-                        現段階ではXへ自動投稿されません。
+                    <div class="character-status">
+                        <span>X文字数</span>
+
+                        <strong id="character-count">
+                            {{ character_count }}
+                        </strong>
+
+                        <span>/ 280</span>
+                    </div>
+
+                    <p
+                        id="character-message"
+                        class="help-text"
+                    >
+                        Xの文字数を確認しています。
                     </p>
 
                     <div class="form-actions">
@@ -119,29 +141,178 @@
                             投稿文をコピー
                         </button>
 
-                        <button type="submit">
+                        <button
+                            type="submit"
+                            name="action"
+                            value="save"
+                            id="save-button"
+                        >
                             投稿文を保存
                         </button>
-                    </div>
-                </form>
 
-                <form
-                    method="post"
-                    action="/candidates/{{ product.id }}/approve"
-                    class="approve-form"
-                >
-                    <button type="submit">
-                        この商品を承認
-                    </button>
+                        <button
+                            type="submit"
+                            name="action"
+                            value="approve"
+                            id="approve-button"
+                        >
+                            保存して承認
+                        </button>
+                    </div>
                 </form>
             </article>
         </section>
     </main>
 
     <script>
+        const draftText =
+            document.getElementById("draft-text");
+
+        const characterCount =
+            document.getElementById("character-count");
+
+        const characterMessage =
+            document.getElementById("character-message");
+
+        const saveButton =
+            document.getElementById("save-button");
+
+        const approveButton =
+            document.getElementById("approve-button");
+
+        let countTimer;
+
+
+        async function getCharacterCountResult() {
+            const formData = new FormData();
+
+            formData.append(
+                "draft_text",
+                draftText.value
+            );
+
+            const response = await fetch(
+                "/x-character-count",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    "文字数の確認に失敗しました。"
+                );
+            }
+
+            return await response.json();
+        }
+
+
+        function showCharacterCount(result) {
+            characterCount.textContent =
+                result.character_count;
+
+            characterCount.classList.remove(
+                "count-safe",
+                "count-warning",
+                "count-danger"
+            );
+
+            characterMessage.classList.remove(
+                "danger-text"
+            );
+
+            if (!result.is_valid) {
+                characterCount.classList.add(
+                    "count-danger"
+                );
+
+                characterMessage.textContent =
+                    "Xの文字数上限を超えています。";
+
+                characterMessage.classList.add(
+                    "danger-text"
+                );
+
+                saveButton.disabled = true;
+                approveButton.disabled = true;
+
+                return;
+            }
+
+            saveButton.disabled = false;
+            approveButton.disabled = false;
+
+            if (result.character_count > 260) {
+                characterCount.classList.add(
+                    "count-warning"
+                );
+
+                characterMessage.textContent =
+                    "投稿可能ですが、少し短くすることをおすすめします。";
+
+                return;
+            }
+
+            characterCount.classList.add(
+                "count-safe"
+            );
+
+            characterMessage.textContent =
+                "Xの文字数上限内です。";
+        }
+
+
+        async function updateCharacterCount() {
+            try {
+                const result =
+                    await getCharacterCountResult();
+
+                showCharacterCount(result);
+
+                return result;
+            } catch {
+                characterMessage.textContent =
+                    "文字数を確認できませんでした。";
+
+                saveButton.disabled = true;
+                approveButton.disabled = true;
+
+                return null;
+            }
+        }
+
+
+        function scheduleCharacterCount() {
+            clearTimeout(countTimer);
+
+            countTimer = setTimeout(
+                updateCharacterCount,
+                200
+            );
+        }
+
+
         async function copyDraftText() {
-            const draftText =
-                document.getElementById("draft-text");
+            const result =
+                await updateCharacterCount();
+
+            if (!result) {
+                alert(
+                    "文字数を確認できないためコピーできません。"
+                );
+
+                return;
+            }
+
+            if (!result.is_valid) {
+                alert(
+                    "Xの文字数上限を超えているためコピーできません。"
+                );
+
+                return;
+            }
 
             try {
                 await navigator.clipboard.writeText(
@@ -156,6 +327,14 @@
                 alert("投稿文をコピーしました。");
             }
         }
+
+
+        draftText.addEventListener(
+            "input",
+            scheduleCharacterCount
+        );
+
+        updateCharacterCount();
     </script>
 </body>
 </html>
